@@ -1,13 +1,14 @@
 # Gazolina
 
+Projet visant à récupérer les prix annoncés des stations esssences sur différents carburants dans une zone géographique. Associée avec une application streamlit (dashboard) facilitant la prise de décision journalière et l'historique des fluctuations.
+
 ## BPMN
 
 -> A FAIRE
 
-## Liens des pages web:
+## Source(s) de données
 
 - MonEssence.fr : https://mon-essence.fr/ville/29383-mauregny-en-haye?q=02820
-- Carburant.org : https://www.carburants.org/prix-carburants/aisne.02/aizelles.kwTwwC/
 
 # Base de données
 
@@ -18,6 +19,47 @@
 ## Type de données
 
 -> Tables (nom colonne, description, type, valeurs)
+
+# Architecture du projet
+
+-> Treefile à faire
+
+# Services indexés
+
+## Airflow
+
+### Pré-requis
+
+1. Installer les dépendances:
+
+```
+sudo apt-get update
+sudo apt-get install -y python3-pip python3-venv build-essential \
+                        libpq-dev postgresql postgresql-contrib
+```
+
+## UV
+
+### Installation
+
+1. Installation des UV pour Linux : `curl -LsSf https://astral.sh/uv/install.sh | sudo sh`
+2. Ajouter UV dans le $PATH : `source $HOME/.local/bin/env`
+3. Vérifier l'installation : `uv --version`
+
+### Notes utiles
+
+1. Créer et nommer le projet : `uv init $UV_PROJECT_NAME`
+2. Naviguer dans le projet : `cd $UV_PROJECT_NAME`
+3. Utiliser UV : `uv add $PACKAGE`
+
+| Commade                           |                                         Description |
+| --------------------------------- | --------------------------------------------------: |
+| `uv add $PACKAGE`                 |                Ajouter une ou plusieurs dépendances |
+| `uv add $PACKAGE=2.0.2`           |    Ajouter une dépendance sous une certaine version |
+| `uv remove $PACKAGE`              |                            Supprimer une dépendance |
+| `uv python list --only-installed` | Afficher la liste des dépendances et leurs versions |
+| `uv run $PYTHON_FILENAME.py`      |                 Exécuter des scripts python avec UV |
+| `uv export -o requirements.txt`   |                 Générer le fichier requirements.txt |
 
 # Configuration de la VM GCP
 
