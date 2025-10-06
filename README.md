@@ -176,7 +176,9 @@ sudo systemctl restart airflow-scheduler airflow-webserver
 sudo systemctl status  airflow-webserver
 ```
 
-10. Associer l'IP de la VM à l'IP du poste:
+10. Afficher le statut du webserver: `sudo systemctl status airflow-webserver`
+
+11. Associer l'IP de la VM à l'IP du poste:
 
 ```
 # Récupérer ton IP publique actuelle
@@ -191,9 +193,28 @@ gcloud compute firewall-rules update allow-airflow-8080 \
 curl -I http://127.0.0.1:8080
 ```
 
-### Supervision du service
+### DAGs
 
-- Affiché le statut du webserver: `sudo systemctl status airflow-webserver`
+Migrer le DAGs vers le dossier lisible par Airflow sur la VM:
+
+1. (Ne faire qu'une fois initialement) Créer le dossier d'appel sur la VM: `sudo mkdir -p /opt/airflow/dags`
+2. Sur le terminal de votre ordinateur, migrer le dags sur la VM dans le dossier courant **home/$USER**:
+
+```
+gcloud compute scp ./uv_gazolina/dags/dag_essence.py \
+  vm-gazolina:~/dag_essence.py \
+  --project gazolina --zone europe-west1-b
+```
+
+_Note_: Si le terminal demande d'entrer une **passphrase**, juste cliquer sur la touche 'Entrer'
+
+3. Se connecter à la VM & migrer le dags python vers le dossier d'appel de la VM:
+
+```
+sudo mv dag_essence.py /opt/airflow/dags/
+```
+
+4. Actualiser les droits d'auteurs à airflow pour accéder au dossier: `sudo chown -R airflow:airflow /opt/airflow/dags`
 
 ## UV
 

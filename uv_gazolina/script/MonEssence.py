@@ -9,6 +9,7 @@ import time
 
 from pathlib import Path
 import time, re
+import os
 import polars as pl
 
 from selenium import webdriver
@@ -131,10 +132,10 @@ driver = webdriver.Chrome(options=opts)
 wait = WebDriverWait(driver, 15)
 
 # Variables
-code_postal = "02820"
+CODE_POSTAL = os.getenv("CODE_POSTAL")
 
 # URL
-url = f"https://mon-essence.fr/ville/29383-mauregny-en-haye?q={code_postal}"
+url = f"https://mon-essence.fr/ville/29383-mauregny-en-haye?q={CODE_POSTAL}"
 driver.get(url)
 
 # Accepter le popup des conditions générales
@@ -172,7 +173,7 @@ for fuel in ["GO", "E10", "SP95", "SP98", "E85", "GPL"]:
         all_rows.append(
             {
                 "date": today,
-                "code_postale": code_postal,
+                "code_postale": CODE_POSTAL,
                 "carburant": fuel,
                 "station": safe_text("h2"),
                 "ville": safe_text("span.small.text-gray-500.fw-light"),
