@@ -38,6 +38,163 @@ sudo apt-get install -y python3-pip python3-venv build-essential \
                         libpq-dev postgresql postgresql-contrib
 ```
 
+2. Optionnel: fixer le fuseau horaire: `sudo timedatectl set-timezone Europe/Paris`
+
+3. Créer un utilisateur système dédié:
+
+```
+sudo useradd --system --create-home --home-dir /opt/airflow --shell /bin/bash airflow
+sudo mkdir -p /opt/airflow/{dags,logs,plugins}
+sudo chown -R airflow:airflow /opt/airflow
+```
+
+4. Instanciation de la base de données PostgreSQL:
+
+```
+sudo -u postgres psql <<'SQL'
+CREATE USER airflow WITH PASSWORD 'airflow';
+CREATE DATABASE airflow OWNER airflow;
+GRANT ALL PRIVILEGES ON DATABASE airflow TO airflow;
+SQL
+```
+
+5. Mise en place des fichiers d'environnement Airflow
+
+```
+sudo tee /etc/airflow.env >/dev/null <<'ENV'
+AIRFLOW_HOME=/opt/airflow
+# Executor & DB
+AIRFLOW__CORE__EXECUTOR=LocalExecutor
+AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@localhost/airflow
+# UI, logs, etc.
+AIRFLOW__CORE__LOAD_EXAMPLES=False
+AIRFLOW__WEBSERVER__EXPOSE_CONFIG=True
+AIRFLOW__CORE__DAGS_FOLDER=/opt/airflow/dags
+AIRFLOW__CORE__BASE_LOG_FOLDER=/opt/airflow/logs
+AIRFLOW__LOGGING__BASE_LOG_FOLDER=/opt/airflow/logs
+AIRFLOW__WEBSERVER__WEB_SERVER_PORT=8080
+# (Optionnel) secret key / fernet si tu en as une
+# AIRFLOW__CORE__FERNET_KEY=<clé_fernet>
+ENV
+sudo chown airflow:airflow /etc/airflow.env
+sudo chmod 640 /etc/airflow.env
+```
+
+6. Ajout des services systemd (webserver + scheduler):
+
+```
+sudo tee /etc/systemd/system/airflow-webserver.service >/dev/null <<'UNIT'
+[Unit]
+Description=Apache Airflow Webserver
+After=network.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+User=airflow
+Group=airflow
+EnvironmentFile=/etc/airflow.env
+ExecStart=/opt/airflow/venv/bin/airflow webserver
+Restart=always
+RestartSec=5
+WorkingDirectory=/opt/airflow
+# journalctl affichera les logs
+StandardOutput=journal
+StandardError=journal
+LimitNOFILE=100000
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+sudo tee /etc/systemd/system/airflow-scheduler.service >/dev/null <<'UNIT'
+[Unit]
+Description=Apache Airflow Scheduler
+After=network.target postgresql.service airflow-webserver.service
+Requires=postgresql.service
+
+[Service]
+User=airflow
+Group=airflow
+EnvironmentFile=/etc/airflow.env
+ExecStart=/opt/airflow/venv/bin/airflow scheduler
+Restart=always
+RestartSec=5
+WorkingDirectory=/opt/airflow
+StandardOutput=journal
+StandardError=journal
+LimitNOFILE=100000
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now airflow-webserver airflow-scheduler
+```
+
+7. Vérifier la connexion au compte GCP
+
+```
+gcloud auth list # Affiche les compte authentifié
+gcloud auth login # Se connecter au compte google
+```
+
+8. Créer la base de données et l'utilisateur Admin:
+
+```
+# Passer sous l'utilisateur airflow
+sudo -iu airflow
+
+# Charger l'env du service et activer le venv
+set -a; [ -f /etc/airflow.env ] && . /etc/airflow.env; set +a
+source /opt/airflow/venv/bin/activate
+
+# Vérifs
+airflow version
+echo "AIRFLOW_HOME=$AIRFLOW_HOME"
+echo -n "sql_alchemy_conn="; airflow config get-value database sql_alchemy_conn
+
+# Init/migration DB
+airflow db init || airflow db migrate
+
+# Créer l'admin (change le mot de passe)
+airflow users create \
+  --username admin \
+  --firstname Admin --lastname User \
+  --role Admin --email admin@example.com \
+  --password 'password'
+
+# Quitter proprement
+deactivate
+exit
+```
+
+9. Redémarrer les services:
+
+```
+sudo systemctl restart airflow-scheduler airflow-webserver
+sudo systemctl status  airflow-webserver
+```
+
+10. Associer l'IP de la VM à l'IP du poste:
+
+```
+# Récupérer ton IP publique actuelle
+MYIP=$(curl -s ifconfig.me)/32
+
+# Mise en place de la règle
+gcloud compute firewall-rules update allow-airflow-8080 \
+  --project gazolina \
+  --source-ranges="$MYIP"
+
+# Lancer le service
+curl -I http://127.0.0.1:8080
+```
+
+### Supervision du service
+
+- Affiché le statut du webserver: `sudo systemctl status airflow-webserver`
+
 ## UV
 
 ### Installation
@@ -87,11 +244,12 @@ gcloud compute instances list --project $PROJECT_ID \
   --format='table(project, name, zone, status, networkInterfaces[].accessConfigs[].natIP)'
 ```
 
-4. S'y connecter:
+4. Installation des composants GCP cloud: `gcloud components update`
+
+5. S'y connecter:
 
 ```
 gcloud compute ssh $VM_NAME \
   --project $PROJECT_ID \
-  --zone $VM_ZONE \
-  -- -vvv
+  --zone $VM_ZONE
 ```
