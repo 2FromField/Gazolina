@@ -1,6 +1,12 @@
 # Gazolina
 
-Projet visant à récupérer les prix annoncés des stations esssences sur différents carburants dans une zone géographique. Associée avec une application streamlit (dashboard) facilitant la prise de décision journalière et l'historique des fluctuations.
+![Kubernetes](https://img.shields.io/badge/Kubernetes-v10.2-3069DE?style=for-the-badge&logo=kubernetes&logoColor=white)
+![ArgoCD](https://img.shields.io/badge/Argo%20CD-v10.2-1e0b3e?style=for-the-badge&logo=argo&logoColor=#d16044)
+![Airflow](https://img.shields.io/badge/Airflow-v10.2-017CEE?style=for-the-badge&logo=Apache%20Airflow&logoColor=white)
+![Python](https://img.shields.io/badge/Python-v10.2-FFD43B?style=for-the-badge&logo=python&logoColor=blue)
+![GCP](https://img.shields.io/badge/Google_Cloud-4285F4?style=for-the-badge&logo=google-cloud&logoColor=white)
+
+Projet visant à récupérer les prix annoncés des stations esssences sur différents carburants dans une zone géographique. Associé à une application streamlit (dashboard) facilitant la prise de décision journalière et affichant l'historique des fluctuations.
 
 ## BPMN
 
@@ -30,191 +36,119 @@ Projet visant à récupérer les prix annoncés des stations esssences sur diff�
 
 ### Pré-requis
 
-1. Installer les dépendances:
+- Installer k8s:
 
 ```
 sudo apt-get update
-sudo apt-get install -y python3-pip python3-venv build-essential \
-                        libpq-dev postgresql postgresql-contrib
+sudo apt-get install -y ca-certificates curl apt-transport-https gnupg
+sudo mkdir -p /etc/apt/keyrings
+curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.30/deb/Release.key \
+  | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.30/deb/ /' \
+  | sudo tee /etc/apt/sources.list.d/kubernetes.list
+sudo apt-get update && sudo apt-get install -y kubectl
+kubectl version --client
 ```
 
-2. Optionnel: fixer le fuseau horaire: `sudo timedatectl set-timezone Europe/Paris`
-
-3. Créer un utilisateur système dédié:
+- Installer helm:
 
 ```
-sudo useradd --system --create-home --home-dir /opt/airflow --shell /bin/bash airflow
-sudo mkdir -p /opt/airflow/{dags,logs,plugins}
-sudo chown -R airflow:airflow /opt/airflow
+curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+helm version
 ```
 
-4. Instanciation de la base de données PostgreSQL:
+- Installer un driver Docker:
 
 ```
-sudo -u postgres psql <<'SQL'
-CREATE USER airflow WITH PASSWORD 'airflow';
-CREATE DATABASE airflow OWNER airflow;
-GRANT ALL PRIVILEGES ON DATABASE airflow TO airflow;
-SQL
+sudo apt-get update
+sudo apt-get install -y ca-certificates curl gnupg
+
+# Repository Docker officiel
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+  https://download.docker.com/linux/debian \
+  $(. /etc/os-release && echo $VERSION_CODENAME) stable" \
+| sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+sudo apt-get update
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io
+
+# démarrer et activer
+sudo systemctl enable --now docker
+
+# Activer le sudo mode
+sudo usermod -aG docker $USER
+newgrp docker
+docker info
 ```
 
-5. Mise en place des fichiers d'environnement Airflow
+- Cluster local minikube (sans GKE)
 
 ```
-sudo tee /etc/airflow.env >/dev/null <<'ENV'
-AIRFLOW_HOME=/opt/airflow
-# Executor & DB
-AIRFLOW__CORE__EXECUTOR=LocalExecutor
-AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@localhost/airflow
-# UI, logs, etc.
-AIRFLOW__CORE__LOAD_EXAMPLES=False
-AIRFLOW__WEBSERVER__EXPOSE_CONFIG=True
-AIRFLOW__CORE__DAGS_FOLDER=/opt/airflow/dags
-AIRFLOW__CORE__BASE_LOG_FOLDER=/opt/airflow/logs
-AIRFLOW__LOGGING__BASE_LOG_FOLDER=/opt/airflow/logs
-AIRFLOW__WEBSERVER__WEB_SERVER_PORT=8080
-# (Optionnel) secret key / fernet si tu en as une
-# AIRFLOW__CORE__FERNET_KEY=<clé_fernet>
-ENV
-sudo chown airflow:airflow /etc/airflow.env
-sudo chmod 640 /etc/airflow.env
+curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+sudo install minikube-linux-amd64 /usr/local/bin/minikube
+
+# Lancer minikube avec le driver docker
+minikube start --driver=docker
+
+# Vérifier les noeuds et pods
+kubectl get nodes
+kubectl -n kube-system get pods
 ```
 
-6. Ajout des services systemd (webserver + scheduler):
+### Services installés
+
+#### ArgoCD
+
+- Créer le namespace & installer le manifest
 
 ```
-sudo tee /etc/systemd/system/airflow-webserver.service >/dev/null <<'UNIT'
-[Unit]
-Description=Apache Airflow Webserver
-After=network.target postgresql.service
-Requires=postgresql.service
-
-[Service]
-User=airflow
-Group=airflow
-EnvironmentFile=/etc/airflow.env
-ExecStart=/opt/airflow/venv/bin/airflow webserver
-Restart=always
-RestartSec=5
-WorkingDirectory=/opt/airflow
-# journalctl affichera les logs
-StandardOutput=journal
-StandardError=journal
-LimitNOFILE=100000
-
-[Install]
-WantedBy=multi-user.target
-UNIT
-
-sudo tee /etc/systemd/system/airflow-scheduler.service >/dev/null <<'UNIT'
-[Unit]
-Description=Apache Airflow Scheduler
-After=network.target postgresql.service airflow-webserver.service
-Requires=postgresql.service
-
-[Service]
-User=airflow
-Group=airflow
-EnvironmentFile=/etc/airflow.env
-ExecStart=/opt/airflow/venv/bin/airflow scheduler
-Restart=always
-RestartSec=5
-WorkingDirectory=/opt/airflow
-StandardOutput=journal
-StandardError=journal
-LimitNOFILE=100000
-
-[Install]
-WantedBy=multi-user.target
-UNIT
-
-sudo systemctl daemon-reload
-sudo systemctl enable --now airflow-webserver airflow-scheduler
+kubectl create namespace argocd
+kubectl -n argocd apply -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 ```
 
-7. Vérifier la connexion au compte GCP
+- Accéder à l'UI par port-forward: `kubectl -n argocd port-forward svc/argocd-server 8080:443`
+
+- Créer un tunnel pour accéder à l'UI sur votre ordinateur (sur le terminal du PC):
 
 ```
-gcloud auth list # Affiche les compte authentifié
-gcloud auth login # Se connecter au compte google
+gcloud auth login # s'authentifier
+gcloud config set project gazolina # setup le projet
+
+# Ouvrir le tunnel
+gcloud compute ssh vm-gazolina \
+  --project gazolina --zone europe-west1-b \
+  -- -N -L 8443:127.0.0.1:8080
 ```
 
-8. Créer la base de données et l'utilisateur Admin:
+- S'authentifier avec l'utilisateur "admin" et le password créé: `kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d; echo`
+
+#### Airflow
+
+- Préparer l'accès Git pour la git-sync (via SSH):
 
 ```
-# Passer sous l'utilisateur airflow
-sudo -iu airflow
+# Génère une clé SANS passphrase (ou réutilise ta deploy-key GitHub)
+ssh-keygen -t ed25519 -N "" -f ./id_ed25519 -C "airflow@cluster"
+cat ./id_ed25519.pub
 
-# Charger l'env du service et activer le venv
-set -a; [ -f /etc/airflow.env ] && . /etc/airflow.env; set +a
-source /opt/airflow/venv/bin/activate
-
-# Vérifs
-airflow version
-echo "AIRFLOW_HOME=$AIRFLOW_HOME"
-echo -n "sql_alchemy_conn="; airflow config get-value database sql_alchemy_conn
-
-# Init/migration DB
-airflow db init || airflow db migrate
-
-# Créer l'admin (change le mot de passe)
-airflow users create \
-  --username admin \
-  --firstname Admin --lastname User \
-  --role Admin --email admin@example.com \
-  --password 'password'
-
-# Quitter proprement
-deactivate
-exit
+# known_hosts GitHub (ed25519) :
+ssh-keyscan github.com > ./known_hosts
 ```
 
-9. Redémarrer les services:
+- Créer le namespace pour Airflow: `kubectl create namespace airflow`
+
+- Créer un secret dans le namespace pour la clé SSH:
 
 ```
-sudo systemctl restart airflow-scheduler airflow-webserver
-sudo systemctl status  airflow-webserver
+kubectl -n airflow create secret generic airflow-ssh-secret \
+  --from-file=gitSshKey=./id_ed25519 \
+  --from-file=known_hosts=./known_hosts
 ```
 
-10. Afficher le statut du webserver: `sudo systemctl status airflow-webserver`
-
-11. Associer l'IP de la VM à l'IP du poste:
-
-```
-# Récupérer ton IP publique actuelle
-MYIP=$(curl -s ifconfig.me)/32
-
-# Mise en place de la règle
-gcloud compute firewall-rules update allow-airflow-8080 \
-  --project gazolina \
-  --source-ranges="$MYIP"
-
-# Lancer le service
-curl -I http://127.0.0.1:8080
-```
-
-### DAGs
-
-Migrer le DAGs vers le dossier lisible par Airflow sur la VM:
-
-1. (Ne faire qu'une fois initialement) Créer le dossier d'appel sur la VM: `sudo mkdir -p /opt/airflow/dags`
-2. Sur le terminal de votre ordinateur, migrer le dags sur la VM dans le dossier courant **home/$USER**:
-
-```
-gcloud compute scp ./uv_gazolina/dags/dag_essence.py \
-  vm-gazolina:~/dag_essence.py \
-  --project gazolina --zone europe-west1-b
-```
-
-_Note_: Si le terminal demande d'entrer une **passphrase**, juste cliquer sur la touche 'Entrer'
-
-3. Se connecter à la VM & migrer le dags python vers le dossier d'appel de la VM:
-
-```
-sudo mv dag_essence.py /opt/airflow/dags/
-```
-
-4. Actualiser les droits d'auteurs à airflow pour accéder au dossier: `sudo chown -R airflow:airflow /opt/airflow/dags`
+- Appliquer le fichier yaml: `kubectl apply -f https://raw.githubusercontent.com/2FromField/Gazolina/main/uv_gazolina/helm/airflow-app.yaml`
 
 ## UV
 
@@ -246,6 +180,28 @@ sudo mv dag_essence.py /opt/airflow/dags/
 - Région: europe-west1 (Belgique)
 - Zone: europe-west1-b
 - Type: e2-medium (2 vCPU, 1 coeur(s), 4 Go de mémoire)
+
+OU </br>
+
+```
+gcloud compute instances create vm-gazolina \
+  --project gazolina \
+  --zone europe-west1-b \
+  --machine-type=e2-medium \
+  --image-family=debian-12 \
+  --image-project=debian-cloud
+```
+
+## Supprimer
+
+Supprimer l'instance et son disque boot, puis recréer une VM neuve: </br>
+
+```
+gcloud compute instances delete vm-gazolina \
+  --project gazolina \
+  --zone europe-west1-b \
+  --delete-disks=all
+```
 
 ## Connexion depuis VSCode
 

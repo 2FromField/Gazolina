@@ -11,6 +11,8 @@ from pathlib import Path
 import time, re
 import os
 import polars as pl
+from pymongo import MongoClient, errors
+import configparser
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -95,9 +97,20 @@ def select_fuel_and_wait(driver, fuel_code: str, timeout: int = 12):
 # Dossier racine du projet = parent du dossier "script"
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-# Chemin de la sauvegarde
+# Credentials
+credential_path = PROJECT_ROOT / "pipeline.conf"
+parser = configparser.ConfigParser()
+parser.read(credential_path)
+
+# Configuration de la base de données MongoDB
+MONGO_URI = parser.get("mongodb", "uri")
+MONGO_DB = parser.get("mongodb", "db_name")
+MONGO_COL = parser.get("mongodb", "collection")
+
+# Chemins de sauvegarde
 in_path = PROJECT_ROOT / "data" / "mon_essence.parquet"
 in_path.parent.mkdir(parents=True, exist_ok=True)
+
 
 # Typage des colonnes lors de la création initiale du dataframe
 SCHEMA = {
@@ -191,6 +204,20 @@ driver.quit()
 # Construction & sauvegarde
 # -----------------------
 
+client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+col = client[MONGO_DB][MONGO_COL]
+
+# Insère la liste de dicts
+try:
+    res = col.insert_many(all_rows, ordered=False)  # ordered=False = plus rapide
+    print(f"MongoDB: insérés = {len(res.inserted_ids)}")
+except errors.BulkWriteError as e:
+    # si certains docs sont invalides/dupliqués, on le voit ici
+    print(f"MongoDB: insérés partiellement (nInserted={e.details.get('nInserted',0)})")
+
+client.close()
+
+"""
 # Construire new_df, forcer le schéma/ordre des colonnes
 new_df = pl.from_dicts(all_rows)
 # ajouter les colonnes manquantes pour respecter SCHEMA
@@ -205,5 +232,5 @@ df = pl.concat([df, new_df], how="diagonal", rechunk=True).unique(
 )
 
 # Sauvegarder les données au format parquet
-df.write_parquet(in_path, compression="zstd")
-print(f"Sauvegardé: {in_path} ({df.height} lignes)")
+# df.write_parquet(in_path, compression="zstd")
+"""
