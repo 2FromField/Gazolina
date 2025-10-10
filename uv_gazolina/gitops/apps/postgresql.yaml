@@ -17,10 +17,9 @@ spec:
       releaseName: postgresql
       values: |
         image:
-          registry: docker.io
+          registry: ghcr.io
           repository: bitnami/postgresql
-          tag: ""
-          digest: "bfd6cabc00ee0712dd55ac4e9e9c21b62996492fc48ec45485a92af75b1e6709"
+          tag: "17"
         primary:
           persistence:
             enabled: true
