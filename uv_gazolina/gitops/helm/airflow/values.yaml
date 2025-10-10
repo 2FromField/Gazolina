@@ -1,0 +1,45 @@
+executor: KubernetesExecutor
+
+postgresql:
+  enabled: true
+  image:
+    registry: docker.io
+    repository: bitnami/postgresql
+    tag: "16"
+  auth:
+    username: airflow
+    password: airflow
+    database: airflow
+
+dags:
+  persistence:
+    enabled: false
+  gitSync:
+    enabled: true
+    repo: "ssh://git@github.com/2FromField/Gazolina.git"
+    branch: "main"
+    subPath: "uv_gazolina/dags"
+    wait: 30
+    sshKeySecret: "airflow-ssh-secret"
+
+web:
+  service:
+    type: NodePort
+    ports:
+      - name: airflow-ui
+        port: 8080
+        targetPort: 8080
+        nodePort: 30080
+
+airflow:
+  legacyCommands: false
+  config:
+    core:
+      load_examples: "False"
+  users:
+    - username: admin
+      role: Admin
+      email: admin@example.com
+      firstName: Admin
+      lastName: User
+      password: "change-me"
