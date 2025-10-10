@@ -1,0 +1,35 @@
+# Storage/Postgres
+global:
+  storageClass: "local-path"    # k3s/microk8s ; adapte au besoin
+
+primary:
+  persistence:
+    enabled: true
+    size: 10Gi
+
+# Auth
+auth:
+  username: airflow
+  password: airflow     # en prod: utilise un Secret externe (voir plus bas)
+  database: airflow
+
+# Service
+primary:
+  service:
+    type: ClusterIP
+    ports:
+      postgresql: 5432
+
+# Resources (à ajuster selon ta VM)
+primary:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+# Monitoring (optionnel)
+metrics:
+  enabled: false

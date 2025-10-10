@@ -1,46 +1,34 @@
+# ----- Exécuteur -----
 executor: KubernetesExecutor
+loadExamples: false
 
+# ----- Airflow Web (exposition, optionnel) -----
+service:
+  type: NodePort
+  ports:
+    http: 8080
+  nodePorts:
+    http: 30080
+
+# ----- NE PAS déployer la DB embarquée -----
 postgresql:
-  enabled: true
-  image:
-    registry: docker.io
-    repository: bitnami/postgresql
-    tag: "14.5.0-debian-11-r6"
-  auth:
-    username: airflow
-    password: airflow
-    database: airflow
+  enabled: false
 
-dags:
-  persistence:
-    enabled: false
-  gitSync:
-    enabled: true
-    repo: "ssh://git@github.com/2FromField/Gazolina.git"
-    branch: "main"
-    subPath: "uv_gazolina/dags"
-    wait: 30
-    sshKeySecret: "airflow-ssh-secret"
+# ----- Utiliser la DB PostgreSQL déployée par Argo CD -----
+# Remplace 'host' par le nom réel du Service PostgreSQL
+externalDatabase:
+  host: postgresql-primary.database.svc.cluster.local # <-- à ajuster (voir note ci-dessous)
+  port: 5432
+  user: airflow
+  database: airflow
+  password: "airflow" # en prod: préfère externalDatabase.existingSecret
 
-webserver:
-  service:
-    type: NodePort
-    ports:
-      - name: web
-        port: 8080
-        targetPort: 8080
-        nodePort: 30080
-  defaultUser:
-    enabled: true
-    username: admin
-    role: Admin
-    email: admin@example.com
-    firstName: Admin
-    lastName: User
-    password: "change-me"
+# ----- Redis -----
+# Inutile avec KubernetesExecutor (uniquement pour Celery).
+redis:
+  enabled: false
 
-# (facultatif mais utile en local) désactiver les exemples
-airflow:
-  config:
-    core:
-      load_examples: "False"
+# ----- (Option) utilisateur web par défaut -----
+auth:
+  username: admin
+  password: "password"

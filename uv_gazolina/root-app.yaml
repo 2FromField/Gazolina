@@ -1,21 +1,26 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: root
+  name: postgresql
   namespace: argocd
 spec:
   project: platform
   destination:
     server: https://kubernetes.default.svc
-    namespace: argocd
-  source:
-    repoURL: git@github.com:2FromField/Gazolina.git
-    targetRevision: main
-    path: uv_gazolina/gitops/apps
+    namespace: database
+  sources:
+    - repoURL: https://charts.bitnami.com/bitnami
+      chart: postgresql
+      targetRevision: 15.*
+      helm:
+        valueFiles:
+          - $values/components/postgresql/values.yaml # <- référence au 2e source
+    - repoURL: git@github.com:2FromField/Gazolina.git # ton repo
+      targetRevision: main
+      path: uv_gazolina/gitops # contient components/postgresql/values.yaml
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-      - ApplyOutOfSyncOnly=true
