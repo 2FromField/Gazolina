@@ -19,6 +19,10 @@ spec:
         # Base de données : Postgres embarqué (bien pour démo). Pour prod -> Postgres managé.
         postgresql:
           enabled: true
+          image:
+            registry: docker.io
+            repository: bitnami/postgresql
+            tag: "16"
           auth:
             username: airflow
             password: airflow
