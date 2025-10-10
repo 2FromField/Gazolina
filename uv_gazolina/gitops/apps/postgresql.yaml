@@ -20,6 +20,8 @@ spec:
           registry: ghcr.io
           repository: bitnami/postgresql
           tag: "17"
+          pullSecrets:
+            - ghcr-creds
         primary:
           persistence:
             enabled: true
