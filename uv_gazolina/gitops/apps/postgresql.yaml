@@ -19,7 +19,7 @@ spec:
         image:
           registry: ghcr.io
           repository: bitnami/postgresql
-          tag: "17"
+          tag: "16"
           pullSecrets:
             - ghcr-creds
         primary:
