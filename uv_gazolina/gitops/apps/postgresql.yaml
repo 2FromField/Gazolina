@@ -12,10 +12,15 @@ spec:
   source:
     repoURL: https://charts.bitnami.com/bitnami
     chart: postgresql
-    targetRevision: 15.*
+    targetRevision: 15.5.38
     helm:
       releaseName: postgresql
       values: |
+        image:
+          registry: docker.io
+          repository: bitnami/postgresql
+          tag: "16"               # <-- important : tag stable existant
+          digest: ""              # (laisse vide si tu utilises 'tag')
         primary:
           persistence:
             enabled: true
