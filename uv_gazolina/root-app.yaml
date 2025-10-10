@@ -11,7 +11,7 @@ spec:
   source:
     repoURL: git@github.com:2FromField/Gazolina.git
     targetRevision: main
-    path: gitops/apps
+    path: uv_gazolina/gitops/apps
   syncPolicy:
     automated:
       prune: true
