@@ -22,24 +22,25 @@ dags:
     wait: 30
     sshKeySecret: "airflow-ssh-secret"
 
-web:
+webserver:
   service:
     type: NodePort
     ports:
-      - name: airflow-ui
+      - name: web
         port: 8080
         targetPort: 8080
         nodePort: 30080
+  defaultUser:
+    enabled: true
+    username: admin
+    role: Admin
+    email: admin@example.com
+    firstName: Admin
+    lastName: User
+    password: "change-me"
 
+# (facultatif mais utile en local) désactiver les exemples
 airflow:
-  legacyCommands: false
   config:
     core:
       load_examples: "False"
-  users:
-    - username: admin
-      role: Admin
-      email: admin@example.com
-      firstName: Admin
-      lastName: User
-      password: "change-me"
