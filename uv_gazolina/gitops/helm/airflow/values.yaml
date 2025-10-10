@@ -5,7 +5,7 @@ postgresql:
   image:
     registry: docker.io
     repository: bitnami/postgresql
-    tag: "16"
+    tag: "14.5.0-debian-11-r6"
   auth:
     username: airflow
     password: airflow
