@@ -16,8 +16,6 @@ spec:
     helm:
       releaseName: postgresql
       values: |
-        global:
-          storageClass: local-path
         primary:
           persistence:
             enabled: true
