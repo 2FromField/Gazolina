@@ -5,14 +5,26 @@ metadata:
   namespace: argocd
 spec:
   description: "Plateforme data (Airflow, etc.)"
+  # --- Repos sources autorisés ---
   sourceRepos:
-    - "https://airflow.apache.org" # chart Helm officiel
-    - "git@github.com:2FromField/Gazolina.git" # ton repo GitOps (si privé en SSH)
+    # Ton repo GitOps (toutes les repos/prefix utiles, ssh et https)
+    - "git@github.com:2FromField/*"
+    - "https://github.com/2FromField/*"
+    # Chart Helm officiel Airflow (si tu l'utilises)
+    - "https://airflow.apache.org"
+    # Chart Bitnami (PostgreSQL, Redis, etc.)
+    - "https://charts.bitnami.com/bitnami"
+
+  # --- Destinations autorisées ---
   destinations:
-    - namespace: "airflow"
-      server: "https://kubernetes.default.svc"
-    - namespace: "argocd"
-      server: "https://kubernetes.default.svc"
+    - server: "https://kubernetes.default.svc"
+      namespace: "argocd"
+    - server: "https://kubernetes.default.svc"
+      namespace: "database"
+    - server: "https://kubernetes.default.svc"
+      namespace: "airflow"
+
+  # --- (optionnel) ressources autorisées ---
   clusterResourceWhitelist:
     - group: "*"
       kind: "*"
