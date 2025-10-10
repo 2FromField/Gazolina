@@ -19,8 +19,7 @@ spec:
         image:
           registry: docker.io
           repository: bitnami/postgresql
-          tag: ""
-          digest: "c3ba373e8c125dda6a0ed7c91ac7d72538cb533f48334e82b7e9e505c50b708b"
+          tag: "17"
         primary:
           persistence:
             enabled: true
