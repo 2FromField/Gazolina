@@ -13,11 +13,12 @@ spec:
       chart: postgresql
       targetRevision: 15.*
       helm:
+        releaseName: postgresql
         valueFiles:
-          - $values/components/postgresql/values.yaml # <- référence au 2e source
+          - $values/uv_gazolina/gitops/components/postgresql/values.yaml # <- référence au 2e source
     - repoURL: git@github.com:2FromField/Gazolina.git # ton repo
       targetRevision: main
-      path: uv_gazolina/gitops # contient components/postgresql/values.yaml
+      path: values # contient components/postgresql/values.yaml
   syncPolicy:
     automated:
       prune: true
