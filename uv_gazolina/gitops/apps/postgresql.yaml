@@ -1,0 +1,37 @@
+# uv_gazolina/gitops/apps/postgresql.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: postgresql
+  namespace: argocd
+spec:
+  project: platform
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: database
+  source:
+    repoURL: https://charts.bitnami.com/bitnami
+    chart: postgresql
+    targetRevision: 15.*
+    helm:
+      releaseName: postgresql
+      values: |
+        global:
+          storageClass: local-path
+        primary:
+          persistence:
+            enabled: true
+            size: 10Gi
+        auth:
+          username: airflow
+          password: airflow
+          database: airflow
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true # <— essentiel ici
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      - PrunePropagationPolicy=foreground
+      - Replace=true
