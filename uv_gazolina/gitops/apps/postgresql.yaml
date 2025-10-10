@@ -17,10 +17,10 @@ spec:
       releaseName: postgresql
       values: |
         image:
-          registry: ghcr.io
+          registry: docker.io
           repository: bitnami/postgresql
-          tag: "16"               # <-- important : tag stable existant
-          digest: ""              # (laisse vide si tu utilises 'tag')
+          tag: ""
+          digest: "sha256:<digest_valide>"
         primary:
           persistence:
             enabled: true
