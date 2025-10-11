@@ -1,0 +1,14 @@
+apiVersion: v2
+name: airflow-umbrella
+description: Umbrella chart for Apache Airflow with local values (single Git source in Argo CD)
+type: application
+version: 0.1.0
+appVersion: "2.9.x"
+
+# Dépendance : chart officiel Apache Airflow
+# Argo CD (repo-server) fera 'helm dependency build' automatiquement.
+dependencies:
+  - name: airflow
+    version: 1.15.0
+    repository: https://airflow.apache.org
+    # condition: airflow.enabled  # (optionnel)

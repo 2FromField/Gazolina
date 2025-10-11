@@ -1,65 +1,59 @@
-# ----- Executor -----
-executor: KubernetesExecutor
-loadExamples: false
+# Toutes les clés ci-dessous ciblent le chart "airflow" (dépendance)
+airflow:
+  # ----- Executor -----
+  executor: KubernetesExecutor
+  loadExamples: false
 
-# ----- UI -----
-service:
-  type: NodePort
-  ports:
-    http: 8080
-  nodePorts:
-    http: 30080
+  # ----- DB externe (postgres déployé à part via Argo CD) -----
+  postgresql:
+    enabled: false
 
-# ----- Pas de DB embarquée -----
-postgresql:
-  enabled: false
+  # Clés spécifiques au chart officiel Apache Airflow
+  data:
+    metadataConnection:
+      user: airflow
+      pass: airflow
+      protocol: postgresql
+      host: postgresql.database.svc.cluster.local # <-- ajuste si besoin (kubectl -n database get svc)
+      port: 5432
+      db: airflow
 
-# ----- DB externe (Bitnami Postgres déployé via Argo CD) -----
-externalDatabase:
-  host: postgresql.database.svc.cluster.local # <= adapte si ton Service s'appelle autrement
-  port: 5432
-  user: airflow
-  database: airflow
-  password: "airflow" # prod: externalDatabase.existingSecret
+  # ----- RBAC + SA (KubernetesExecutor a besoin de créer des pods) -----
+  rbac:
+    create: true
+  serviceAccount:
+    create: true
+    automountServiceAccountToken: true
 
-# ----- Redis inutile en KubernetesExecutor -----
-redis:
-  enabled: false
+  # ----- UI (exposée en NodePort pour test) -----
+  service:
+    type: NodePort
+    ports:
+      http: 8080
+    nodePorts:
+      http: 30080
 
-# ----- Auth basique (à sécuriser ensuite) -----
-auth:
-  username: admin
-  password: "password"
-
-# ----- RBAC + SA pour KubernetesExecutor -----
-rbac:
-  create: true
-serviceAccount:
-  create: true
-  automountServiceAccountToken: true
-
-# ----- (Optionnel) Git sync des DAGs -----
-git:
+  # ----- (Optionnel) GIT Sync des DAGs -----
+  # Le chart officiel propose git-sync via 'dags.gitSync'
+  # Dé-commente si tu veux tirer tes DAGs depuis GitHub (clé à fournir séparément).
   dags:
-    enabled: true
-    repositories:
-      - repository: "ssh://git@github.com/2FromField/Gazolina.git"
-        branch: "main"
-        name: "gazolina-dags"
-        path: "uv_gazolina/dags"
-  sync:
-    interval: 30
+    persistence:
+      enabled: false
+    gitSync:
+      enabled: true
+      repo: "https://github.com/2FromField/Gazolina.git"
+      branch: "main"
+      subPath: "uv_gazolina/dags"
+      wait: 30
 
-# ----- (Optionnel) Pod template des workers -----
-worker:
-  podTemplate:
-    spec:
-      restartPolicy: Never
-      containers:
-        - name: base
-          image: bitnami/airflow-worker:2.9.3
-          imagePullPolicy: IfNotPresent
-          resources:
-            requests:
-              cpu: "250m"
-              memory: "512Mi"
+  # ----- (Optionnel) Utilisateur admin (démarrage) -----
+  # Pour débuter simplement (à sécuriser ensuite via Secret)
+  users:
+    - username: admin
+      role: Admin
+      email: admin@example.com
+      firstName: Admin
+      lastName: User
+      password: "change-me"
+
+  # (Autres overrides possibles du chart officiel ici si besoin)

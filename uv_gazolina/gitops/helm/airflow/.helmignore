@@ -1,0 +1,8 @@
+# Fichiers/dirs à ignorer par Helm lors du packaging
+.git/
+.github/
+.gitignore
+*.swp
+*.tmp
+*.bak
+.DS_Store
