@@ -10,16 +10,18 @@ spec:
     namespace: airflow
   # Multi-source (chart officiel + tes values dans ton repo)
   sources:
+    # Source 0 : le chart Airflow
     - repoURL: https://airflow.apache.org
       chart: airflow
       targetRevision: 1.15.0
+      helm:
+        valueFiles:
+          - $values/values.yaml
+    # Source 1 : ton repo Git qui contient le values.yaml
     - repoURL: git@github.com:2FromField/Gazolina.git
       targetRevision: main
       path: uv_gazolina/gitops/helm/airflow
       ref: values
-  sourcesHelm:
-    valueFiles:
-      - $values/values.yaml # ← chemin vers la ref
   syncPolicy:
     automated:
       prune: true
