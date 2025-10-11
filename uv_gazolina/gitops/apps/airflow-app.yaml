@@ -18,7 +18,7 @@ spec:
         valueFiles:
           - $values/values.yaml
     # Source 1 : ton repo Git qui contient le values.yaml
-    - repoURL: git@github.com:2FromField/Gazolina.git
+    - repoURL: https://github.com/2FromField/Gazolina.git
       targetRevision: main
       path: uv_gazolina/gitops/helm/airflow
       ref: values
