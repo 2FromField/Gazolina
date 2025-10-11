@@ -11,7 +11,7 @@ spec:
   sources:
     - repoURL: https://github.com/2FromField/Gazolina.git
       targetRevision: main
-      path: helm/airflow # <= le dossier ci-dessus
+      path: uv_gazolina/gitops/helm/airflow # <= le dossier ci-dessus
   syncPolicy:
     automated:
       prune: true
