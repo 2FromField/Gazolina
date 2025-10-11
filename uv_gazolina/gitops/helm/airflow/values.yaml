@@ -1,8 +1,8 @@
-# ----- Exécuteur -----
+# ----- Executor -----
 executor: KubernetesExecutor
 loadExamples: false
 
-# ----- Airflow Web (exposition, optionnel) -----
+# ----- UI -----
 service:
   type: NodePort
   ports:
@@ -10,25 +10,56 @@ service:
   nodePorts:
     http: 30080
 
-# ----- NE PAS déployer la DB embarquée -----
+# ----- Pas de DB embarquée -----
 postgresql:
   enabled: false
 
-# ----- Utiliser la DB PostgreSQL déployée par Argo CD -----
-# Remplace 'host' par le nom réel du Service PostgreSQL
+# ----- DB externe (Bitnami Postgres déployé via Argo CD) -----
 externalDatabase:
-  host: postgresql-primary.database.svc.cluster.local # <-- à ajuster (voir note ci-dessous)
+  host: postgresql.database.svc.cluster.local # <= adapte si ton Service s'appelle autrement
   port: 5432
   user: airflow
   database: airflow
-  password: "airflow" # en prod: préfère externalDatabase.existingSecret
+  password: "airflow" # prod: externalDatabase.existingSecret
 
-# ----- Redis -----
-# Inutile avec KubernetesExecutor (uniquement pour Celery).
+# ----- Redis inutile en KubernetesExecutor -----
 redis:
   enabled: false
 
-# ----- (Option) utilisateur web par défaut -----
+# ----- Auth basique (à sécuriser ensuite) -----
 auth:
   username: admin
   password: "password"
+
+# ----- RBAC + SA pour KubernetesExecutor -----
+rbac:
+  create: true
+serviceAccount:
+  create: true
+  automountServiceAccountToken: true
+
+# ----- (Optionnel) Git sync des DAGs -----
+git:
+  dags:
+    enabled: true
+    repositories:
+      - repository: "ssh://git@github.com/2FromField/Gazolina.git"
+        branch: "main"
+        name: "gazolina-dags"
+        path: "uv_gazolina/dags"
+  sync:
+    interval: 30
+
+# ----- (Optionnel) Pod template des workers -----
+worker:
+  podTemplate:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: base
+          image: bitnami/airflow-worker:2.9.3
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
