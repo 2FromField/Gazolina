@@ -1,54 +1,33 @@
 airflow:
-  # --- Exécuteur & options générales ---
   executor: KubernetesExecutor
   loadExamples: false
 
-  # --- Connexion DB externe (chart Apache : bloc metadataConnection) ---
   data:
     metadataConnection:
       user: airflow
       pass: airflow
       protocol: postgresql
-      host: postgresql.database.svc.cluster.local # <- service du chart PostgreSQL (ns: database)
+      host: postgresql.database.svc.cluster.local
       port: 5432
       db: airflow
 
-  # --- Secrets Airflow (Fernet key obligatoire) ---
-  # Crée d'abord le secret:
-  # kubectl -n airflow create secret generic airflow-fernet-key \
-  #   --from-literal=airflow-fernet-key='<ta_fernet_key_base64>'
   secrets:
     - envName: AIRFLOW__CORE__FERNET_KEY
       secretName: airflow-fernet-key
       secretKey: airflow-fernet-key
+    - envName: AIRFLOW__WEBSERVER__SECRET_KEY
+      secretName: airflow-webserver-secret
+      secretKey: webserver-secret-key
 
-  # --- Utilisateur admin initial (facultatif, utile en dev) ---
-  users:
-    - username: admin
+  webserver:
+    defaultUser:
+      enabled: true
+      username: admin
+      password: "change-me"
       role: Admin
       email: admin@example.com
       firstName: Admin
       lastName: User
-      password: "change-me"
-
-  # --- DAGs: git-sync par SSH (clé privée dans un Secret séparé) ---
-  dags:
-    persistence:
-      enabled: false
-    gitSync:
-      enabled: true
-      repo: "ssh://git@github.com/2FromField/Gazolina.git"
-      branch: "main"
-      subPath: "uv_gazolina/dags"
-      wait: 30
-      sshKeySecret: "airflow-ssh-secret"
-      # Optionnel: si tu veux forcer known_hosts inline plutôt que via Secret:
-      # knownHosts: |-
-      #   github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA...
-
-  # --- Service Web (UI) en NodePort 30080 ---
-  webserver:
-    # ressources modestes pour VM légère (ajuste si besoin)
     resources:
       requests:
         cpu: 100m
@@ -61,7 +40,17 @@ airflow:
           targetPort: 8080
           nodePort: 30080
 
-  # --- Scheduler / Triggerer : ressources modestes (VM) ---
+  dags:
+    persistence:
+      enabled: false
+    gitSync:
+      enabled: true
+      repo: "https://github.com/2FromField/Gazolina.git"
+      branch: "main"
+      subPath: "uv_gazolina/dags"
+      wait: 30
+      depth: 1
+
   scheduler:
     resources:
       requests:
@@ -73,17 +62,14 @@ airflow:
         cpu: 50m
         memory: 128Mi
 
-  # --- Job de migration : activée par défaut ; on laisse le chart gérer ---
   migrateDatabaseJob:
     enabled: true
 
-  # --- RBAC / SA (KubernetesExecutor crée des pods) ---
   rbac:
     create: true
   serviceAccount:
     create: true
     automountServiceAccountToken: true
 
-# IMPORTANT : on n’active PAS de Postgres embarqué dans Airflow (DB gérée séparément)
 postgresql:
   enabled: false
