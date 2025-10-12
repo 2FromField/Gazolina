@@ -41,10 +41,11 @@ airflow:
       enabled: false
     gitSync:
       enabled: true
-      repo: "https://github.com/2FromField/Gazolina.git"
+      repo: "ssh://git@github.com/2FromField/Gazolina.git"
       branch: "main"
       subPath: "uv_gazolina/dags"
       wait: 30
+      sshKeySecret: "airflow-ssh-secret"
 
   # ----- (Optionnel) Utilisateur admin (démarrage) -----
   # Pour débuter simplement (à sécuriser ensuite via Secret)
