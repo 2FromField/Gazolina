@@ -9,7 +9,7 @@ spec:
     server: https://kubernetes.default.svc
     namespace: argocd
   source:
-    repoURL: git@github.com:2FromField/Gazolina.git
+    repoURL: https://github.com/2FromField/Gazolina.git
     targetRevision: main
     path: uv_gazolina/gitops/apps
     directory:
