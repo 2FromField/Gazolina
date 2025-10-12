@@ -1,5 +1,5 @@
 airflow:
-  executor: KubernetesExecutor
+  executor: LocalExecutor
   loadExamples: false
 
   data:
@@ -48,7 +48,7 @@ airflow:
       repo: "https://github.com/2FromField/Gazolina.git"
       branch: "main"
       subPath: "uv_gazolina/dags"
-      wait: 30
+      wait: 150
       depth: 1
 
   scheduler:
@@ -57,10 +57,11 @@ airflow:
         cpu: 100m
         memory: 256Mi
   triggerer:
-    resources:
-      requests:
-        cpu: 50m
-        memory: 128Mi
+    enabled: false
+    # resources:
+    #   requests:
+    #     cpu: 50m
+    #     memory: 128Mi
 
   migrateDatabaseJob:
     enabled: true
