@@ -1,41 +1,37 @@
-# Toutes les clés ci-dessous ciblent le chart "airflow" (dépendance)
 airflow:
-  # ----- Executor -----
+  # --- Exécuteur & options générales ---
   executor: KubernetesExecutor
   loadExamples: false
 
-  # ----- DB externe (postgres déployé à part via Argo CD) -----
-  postgresql:
-    enabled: false
-
-  # Clés spécifiques au chart officiel Apache Airflow
+  # --- Connexion DB externe (chart Apache : bloc metadataConnection) ---
   data:
     metadataConnection:
       user: airflow
       pass: airflow
       protocol: postgresql
-      host: postgresql.database.svc.cluster.local # <-- ajuste si besoin (kubectl -n database get svc)
+      host: postgresql.database.svc.cluster.local # <- service du chart PostgreSQL (ns: database)
       port: 5432
       db: airflow
 
-  # ----- RBAC + SA (KubernetesExecutor a besoin de créer des pods) -----
-  rbac:
-    create: true
-  serviceAccount:
-    create: true
-    automountServiceAccountToken: true
+  # --- Secrets Airflow (Fernet key obligatoire) ---
+  # Crée d'abord le secret:
+  # kubectl -n airflow create secret generic airflow-fernet-key \
+  #   --from-literal=airflow-fernet-key='<ta_fernet_key_base64>'
+  secrets:
+    - envName: AIRFLOW__CORE__FERNET_KEY
+      secretName: airflow-fernet-key
+      secretKey: airflow-fernet-key
 
-  # ----- UI (exposée en NodePort pour test) -----
-  service:
-    type: NodePort
-    ports:
-      http: 8080
-    nodePorts:
-      http: 30080
+  # --- Utilisateur admin initial (facultatif, utile en dev) ---
+  users:
+    - username: admin
+      role: Admin
+      email: admin@example.com
+      firstName: Admin
+      lastName: User
+      password: "change-me"
 
-  # ----- (Optionnel) GIT Sync des DAGs -----
-  # Le chart officiel propose git-sync via 'dags.gitSync'
-  # Dé-commente si tu veux tirer tes DAGs depuis GitHub (clé à fournir séparément).
+  # --- DAGs: git-sync par SSH (clé privée dans un Secret séparé) ---
   dags:
     persistence:
       enabled: false
@@ -46,15 +42,48 @@ airflow:
       subPath: "uv_gazolina/dags"
       wait: 30
       sshKeySecret: "airflow-ssh-secret"
+      # Optionnel: si tu veux forcer known_hosts inline plutôt que via Secret:
+      # knownHosts: |-
+      #   github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA...
 
-  # ----- (Optionnel) Utilisateur admin (démarrage) -----
-  # Pour débuter simplement (à sécuriser ensuite via Secret)
-  users:
-    - username: admin
-      role: Admin
-      email: admin@example.com
-      firstName: Admin
-      lastName: User
-      password: "change-me"
+  # --- Service Web (UI) en NodePort 30080 ---
+  webserver:
+    # ressources modestes pour VM légère (ajuste si besoin)
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+    service:
+      type: NodePort
+      ports:
+        - name: http
+          port: 8080
+          targetPort: 8080
+          nodePort: 30080
 
-  # (Autres overrides possibles du chart officiel ici si besoin)
+  # --- Scheduler / Triggerer : ressources modestes (VM) ---
+  scheduler:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+  triggerer:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+
+  # --- Job de migration : activée par défaut ; on laisse le chart gérer ---
+  migrateDatabaseJob:
+    enabled: true
+
+  # --- RBAC / SA (KubernetesExecutor crée des pods) ---
+  rbac:
+    create: true
+  serviceAccount:
+    create: true
+    automountServiceAccountToken: true
+
+# IMPORTANT : on n’active PAS de Postgres embarqué dans Airflow (DB gérée séparément)
+postgresql:
+  enabled: false
