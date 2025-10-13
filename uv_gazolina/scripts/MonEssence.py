@@ -20,11 +20,14 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
+import sys
 import utils  # ta fonction accept_consent(driver)
 
 # -----------------------
 # Helpers
 # -----------------------
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 FUEL_TO_ID = {
     "GO": "id-gasoil",
