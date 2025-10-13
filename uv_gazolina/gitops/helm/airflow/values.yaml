@@ -11,7 +11,7 @@ airflow:
       port: 5432
       db: airflow
 
-  # 1) mapping des secrets (ok)
+  # Secrets mappés sur des variables d'env (OK)
   secrets:
     - envName: AIRFLOW__CORE__FERNET_KEY
       secretName: airflow-fernet-key
@@ -20,8 +20,8 @@ airflow:
       secretName: airflow-webserver-secret-key
       secretKey: webserver-secret-key
 
-  # 2) injection globale (compatible schema) : impose la même clé partout
-  extraEnv:
+  # ✅ Injection globale, compatible schéma (remplace extraEnv)
+  env:
     - name: AIRFLOW__WEBSERVER__SECRET_KEY
       valueFrom:
         secretKeyRef:
