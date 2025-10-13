@@ -20,6 +20,12 @@ airflow:
       secretKey: webserver-secret-key
 
   webserver:
+    extraEnv:
+      - name: AIRFLOW__WEBSERVER__SECRET_KEY
+        valueFrom:
+          secretKeyRef:
+            name: airflow-webserver-secret-key
+            key: webserver-secret-key
     defaultUser:
       enabled: true
       username: admin
@@ -52,10 +58,17 @@ airflow:
       depth: 1
 
   scheduler:
+    extraEnv:
+      - name: AIRFLOW__WEBSERVER__SECRET_KEY
+        valueFrom:
+          secretKeyRef:
+            name: airflow-webserver-secret-key
+            key: webserver-secret-key
     resources:
       requests:
         cpu: 100m
         memory: 256Mi
+
   triggerer:
     enabled: false
     # resources:
@@ -68,9 +81,11 @@ airflow:
 
   rbac:
     create: true
+
   serviceAccount:
     create: true
     automountServiceAccountToken: true
 
+  # Désactive le PostgreSQL embarqué (on utilise ton instance externe)
   postgresql:
     enabled: false
