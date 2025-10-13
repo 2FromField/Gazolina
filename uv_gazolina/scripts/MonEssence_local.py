@@ -94,10 +94,23 @@ def select_fuel_and_wait(driver, fuel_code: str, timeout: int = 12):
 # Chemins & schéma
 # -----------------------
 
+# Dossier racine du projet = parent du dossier "script"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+# Credentials
+credential_path = PROJECT_ROOT / "pipeline.conf"
+parser = configparser.ConfigParser()
+parser.read(credential_path)
+
 # Configuration de la base de données MongoDB
-MONGO_URI = "mongodb+srv://jobrulearning_db_user:ZIDaj5jwIFii8zPc@gazolinacluster.uhsoiuq.mongodb.net/"
-MONGO_DB = "gazolinadb"
-MONGO_COL = "data"
+MONGO_URI = parser.get("mongodb", "uri")
+MONGO_DB = parser.get("mongodb", "db_name")
+MONGO_COL = parser.get("mongodb", "collection")
+
+# Chemins de sauvegarde
+in_path = PROJECT_ROOT / "data" / "mon_essence.parquet"
+in_path.parent.mkdir(parents=True, exist_ok=True)
+
 
 # Typage des colonnes lors de la création initiale du dataframe
 SCHEMA = {
@@ -112,6 +125,13 @@ SCHEMA = {
     "lien": pl.Utf8,  # ← utile pour dédup
 }
 
+# Charger si présent, sinon créer un parquet vide schématisé
+if in_path.exists():
+    df = pl.read_parquet(in_path)
+else:
+    df = pl.DataFrame(schema=SCHEMA)
+    df.write_parquet(in_path)  # df est vide
+
 # -----------------------
 # Selenium
 # -----------------------
@@ -124,8 +144,11 @@ opts.add_argument("--headless=new")  # Navigateur caché
 driver = webdriver.Chrome(options=opts)
 wait = WebDriverWait(driver, 15)
 
+# Variables
+CODE_POSTAL = os.getenv("CODE_POSTAL")
+
 # URL
-url = f"https://mon-essence.fr/ville/29383-mauregny-en-haye?q=02820"
+url = f"https://mon-essence.fr/ville/29383-mauregny-en-haye?q={CODE_POSTAL}"
 driver.get(url)
 
 # Accepter le popup des conditions générales
@@ -163,7 +186,7 @@ for fuel in ["GO", "E10", "SP95", "SP98", "E85", "GPL"]:
         all_rows.append(
             {
                 "date": today,
-                "code_postale": "02820",
+                "code_postale": CODE_POSTAL,
                 "carburant": fuel,
                 "station": safe_text("h2"),
                 "ville": safe_text("span.small.text-gray-500.fw-light"),
@@ -193,3 +216,21 @@ except errors.BulkWriteError as e:
     print(f"MongoDB: insérés partiellement (nInserted={e.details.get('nInserted',0)})")
 
 client.close()
+
+"""
+# Construire new_df, forcer le schéma/ordre des colonnes
+new_df = pl.from_dicts(all_rows)
+# ajouter les colonnes manquantes pour respecter SCHEMA
+for col, dtype in SCHEMA.items():
+    if col not in new_df.columns:
+        new_df = new_df.with_columns(pl.lit(None).cast(dtype).alias(col))
+new_df = new_df.select(list(SCHEMA.keys())).cast(SCHEMA, strict=False)
+
+# Concat + dédup (évite doublons si relance)
+df = pl.concat([df, new_df], how="diagonal", rechunk=True).unique(
+    subset=["date", "code_postale", "carburant", "lien"], keep="last"
+)
+
+# Sauvegarder les données au format parquet
+# df.write_parquet(in_path, compression="zstd")
+"""
