@@ -16,7 +16,7 @@ airflow:
       secretName: airflow-fernet-key
       secretKey: airflow-fernet-key
     - envName: AIRFLOW__WEBSERVER__SECRET_KEY
-      secretName: airflow-webserver-secret
+      secretName: airflow-webserver-secret-key
       secretKey: webserver-secret-key
 
   webserver:
