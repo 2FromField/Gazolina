@@ -11,6 +11,7 @@ airflow:
       port: 5432
       db: airflow
 
+  # 1) mapping des secrets (ok)
   secrets:
     - envName: AIRFLOW__CORE__FERNET_KEY
       secretName: airflow-fernet-key
@@ -19,13 +20,15 @@ airflow:
       secretName: airflow-webserver-secret-key
       secretKey: webserver-secret-key
 
+  # 2) injection globale (compatible schema) : impose la même clé partout
+  extraEnv:
+    - name: AIRFLOW__WEBSERVER__SECRET_KEY
+      valueFrom:
+        secretKeyRef:
+          name: airflow-webserver-secret-key
+          key: webserver-secret-key
+
   webserver:
-    extraEnv:
-      - name: AIRFLOW__WEBSERVER__SECRET_KEY
-        valueFrom:
-          secretKeyRef:
-            name: airflow-webserver-secret-key
-            key: webserver-secret-key
     defaultUser:
       enabled: true
       username: admin
@@ -58,12 +61,6 @@ airflow:
       depth: 1
 
   scheduler:
-    extraEnv:
-      - name: AIRFLOW__WEBSERVER__SECRET_KEY
-        valueFrom:
-          secretKeyRef:
-            name: airflow-webserver-secret-key
-            key: webserver-secret-key
     resources:
       requests:
         cpu: 100m
@@ -71,21 +68,15 @@ airflow:
 
   triggerer:
     enabled: false
-    # resources:
-    #   requests:
-    #     cpu: 50m
-    #     memory: 128Mi
 
   migrateDatabaseJob:
     enabled: true
 
   rbac:
     create: true
-
   serviceAccount:
     create: true
     automountServiceAccountToken: true
 
-  # Désactive le PostgreSQL embarqué (on utilise ton instance externe)
   postgresql:
     enabled: false
