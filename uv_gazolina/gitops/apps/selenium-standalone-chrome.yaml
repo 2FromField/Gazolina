@@ -1,0 +1,46 @@
+# selenium-standalone-chrome.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: selenium-chrome
+  namespace: airflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: selenium-chrome }
+  template:
+    metadata:
+      labels: { app: selenium-chrome }
+    spec:
+      containers:
+        - name: chrome
+          image: selenium/standalone-chromium:latest
+          ports:
+            - containerPort: 4444
+          env:
+            - name: SE_NODE_MAX_SESSIONS
+              value: "1"
+          # évite les crashs liés à /dev/shm trop petit
+          volumeMounts:
+            - name: dshm
+              mountPath: /dev/shm
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+      volumes:
+        - name: dshm
+          emptyDir: { medium: Memory, sizeLimit: "1Gi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: selenium-chrome
+  namespace: airflow
+spec:
+  selector: { app: selenium-chrome }
+  ports:
+    - name: webdriver
+      port: 4444
+      targetPort: 4444
+  type: ClusterIP
