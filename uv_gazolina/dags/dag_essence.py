@@ -7,12 +7,13 @@ from airflow.operators.python import PythonVirtualenvOperator
 
 # callable exécutée DANS le venv
 def run_script(code_postal: str = "02820"):
-    import os, runpy
+    import os, sys, runpy, pathlib
 
+    base = pathlib.Path("/opt/airflow/dags/repo/uv_gazolina/scripts")
+    # ➜ permet "import utils" car utils.py est dans scripts/
+    sys.path.insert(0, str(base))
     os.environ["CODE_POSTAL"] = code_postal
-    runpy.run_path(
-        "/opt/airflow/dags/repo/uv_gazolina/scripts/MonEssence.py", run_name="__main__"
-    )
+    runpy.run_path(str(base / "MonEssence.py"), run_name="__main__")
 
 
 def read_requirements(path: str):
