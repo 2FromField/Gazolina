@@ -118,10 +118,15 @@ SCHEMA = {
 
 # Options relative au webdriver
 opts = Options()
-opts.add_argument("--headless=new")  # Navigateur caché
+opts.add_argument("--headless=new")
+opts.add_argument("--no-sandbox")
+opts.add_argument("--disable-dev-shm-usage")
 
 # Lancer le Driver avec Chrome
-driver = webdriver.Chrome(options=opts)
+driver = webdriver.Remote(
+    command_executor="http://selenium-chrome.airflow.svc.cluster.local:4444",
+    options=opts,
+)
 wait = WebDriverWait(driver, 15)
 
 # URL
