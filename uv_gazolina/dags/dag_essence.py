@@ -1,15 +1,41 @@
-from datetime import datetime, timedelta
-from airflow import DAG
-from airflow.operators.bash import BashOperator
+from pathlib import Path
+from datetime import timedelta
 import pendulum
+from airflow import DAG
+from airflow.operators.python import PythonVirtualenvOperator
+
+
+# callable exécutée DANS le venv
+def run_script(code_postal: str = "02820"):
+    import os, runpy
+
+    os.environ["CODE_POSTAL"] = code_postal
+    runpy.run_path(
+        "/opt/airflow/dags/repo/uv_gazolina/scripts/MonEssence.py", run_name="__main__"
+    )
+
+
+def read_requirements(path: str):
+    p = Path(path)
+    if not p.exists():
+        # laisse un message clair dans les logs si git-sync n'a pas encore matérialisé le fichier
+        raise FileNotFoundError(f"requirements.txt introuvable: {p}")
+    return [
+        l.strip()
+        for l in p.read_text().splitlines()
+        if l.strip() and not l.startswith("#")
+    ]
+
+
+REQ_FILE = "/opt/airflow/dags/repo/uv_gazolina/requirements.txt"
+reqs = read_requirements(REQ_FILE)
 
 with DAG(
     dag_id="get_essence",
-    description="Lance MonEssecence.py tous les jours à 07:00 (Europe/Paris)",
-    # Début : 7 octobre 2025 à minuit (le premier run sera à 07:00 ce jour-là)
-    start_date=pendulum.datetime(2025, 10, 7, 0, 0, 0),
-    schedule="0 7 * * *",  # tous les jours à 07:00
-    catchup=False,  # pas de rattrapage automatique avant maintenant
+    description="Lance MonEssence.py tous les jours à 07:00 (Europe/Paris)",
+    start_date=pendulum.datetime(2025, 10, 7, 0, 0, 0, tz="Europe/Paris"),
+    schedule="0 7 * * *",
+    catchup=False,
     max_active_runs=1,
     default_args={
         "owner": "airflow",
@@ -18,13 +44,11 @@ with DAG(
     },
     tags=["prod", "script"],
 ) as dag:
-    run_script = BashOperator(
+    run = PythonVirtualenvOperator(
         task_id="run_get_essence",
-        # Utilise le Python du venv Airflow + ton script
-        bash_command="python -u /opt/airflow/dags/repo/uv_gazolina/scripts/MonEssence.py",
-        # (Optionnel) passer des variables d'env à ton script
-        env={
-            "CODE_POSTAL": "02820",  # exemple
-            # ajoute ce dont ton script a besoin
-        },
+        python_callable=run_script,
+        op_kwargs={"code_postal": "02820"},  # <-- remplace l'env du BashOperator
+        requirements=reqs,  # <-- installé dans le venv de la task
+        system_site_packages=False,  # venv isolé
+        # use_dill=True,                      # à activer si tu sérialises des objets complexes
     )
