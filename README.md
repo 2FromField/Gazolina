@@ -208,27 +208,27 @@ kubectl -n airflow create secret generic airflow-fernet-key \
 
 # Clé secret Flask du webserver
 kubectl -n airflow create secret generic airflow-webserver-secret-key \
-  --from-literal=airflow-webserver-secret-key="$(head -c 16 /dev/urandom | base64 | tr -d '\n')"
+  --from-literal=webserver-secret-key='Yx3tYqQZfHn9v2S5pL7T1dK0wR8uM6cN4bA2fG1hJ0qZ' \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+# Relancer les pods
+kubectl -n airflow rollout restart deploy/airflow-webserver
+kubectl -n airflow rollout restart statefulset/airflow-scheduler
 ```
 
-- Télécharger le fichier:
-
-```
-curl -fsSL -o ~/airflow-app.yaml \
-  https://raw.githubusercontent.com/2FromField/Gazolina/main/uv_gazolina/helm/airflow-app.yaml
-```
-
-- OPTIONNEL: valider le YAML côté client: `kubectl apply --dry-run=client -f ~/airflow-app.yaml`
-
-- Appliquer le fichier YAML: `kubectl apply -f ~/airflow-app.yaml`
-
----
-
-- Mettre à jour le fichier .yaml: `kubectl apply -n argocd -f https://raw.githubusercontent.com/2FromField/Gazolina/main/uv_gazolina/gitops/apps/airflow.yaml`
 - Supprimer le service et le relancer:
 
 ```
 kubectl -n argocd delete application airflow
+```
+
+- Générer le fichier de dépendances 'requirements.txt': `uv pip compile uv_gazolina/pyproject.toml -o uv_gazolina/requirements.txt`
+
+- (Spécificité à MongoDB) Ajouter l'adresse IP de la VM pour dans le 'Network Access':
+
+```
+kubectl -n airflow run curlip --rm -it --image=curlimages/curl --restart=Never -- \
+  curl -s https://ifconfig.me
 ```
 
 ---
@@ -275,8 +275,6 @@ YAML
 # Suivre la migration
 kubectl -n airflow logs -f job/airflow-db-migrate
 ```
-
-- Générer le fichier de dépendances 'requirements.txt': `uv pip compile uv_gazolina/pyproject.toml -o uv_gazolina/requirements.txt`
 
 ### Configuration des crédentials
 
