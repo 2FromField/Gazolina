@@ -21,7 +21,7 @@ with DAG(
     run_script = BashOperator(
         task_id="run_get_essence",
         # Utilise le Python du venv Airflow + ton script
-        bash_command="/opt/airflow/venv/bin/python /opt/airflow/dags/scripts/mon_script.py ",
+        bash_command="python -u /opt/airflow/dags/scripts/MonEssence.py",
         # (Optionnel) passer des variables d'env à ton script
         env={
             "CODE_POSTAL": "02820",  # exemple
