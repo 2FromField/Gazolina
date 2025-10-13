@@ -47,7 +47,7 @@ airflow:
       enabled: true
       repo: "https://github.com/2FromField/Gazolina.git"
       branch: "main"
-      subPath: "uv_gazolina/dags"
+      subPath: "uv_gazolina"
       wait: 150
       depth: 1
 
