@@ -100,19 +100,21 @@ def select_fuel_and_wait(driver, fuel_code: str, timeout: int = 12):
 # Configuration de la base de données MongoDB
 MONGO_URI = "mongodb+srv://jobrulearning_db_user:ZIDaj5jwIFii8zPc@gazolinacluster.uhsoiuq.mongodb.net/"
 MONGO_DB = "gazolinadb"
-MONGO_COL = "data"
+MONGO_COL = "fuel_data"
 
 # Typage des colonnes lors de la création initiale du dataframe
 SCHEMA = {
     "date": pl.Utf8,
-    "code_postale": pl.Utf8,
-    "carburant": pl.Utf8,
+    "postal_code": pl.Utf8,
+    "fuel": pl.Utf8,
     "station": pl.Utf8,
-    "ville": pl.Utf8,
-    "distance": pl.Float64,
-    "prix": pl.Float64,
-    "verif": pl.Boolean,
-    "lien": pl.Utf8,  # ← utile pour dédup
+    "city": pl.Utf8,
+    "price": pl.Float64,
+    "checking": pl.Boolean,
+    "link": pl.Utf8,  # ← utile pour dédup
+    "lat": pl.Float64,
+    "lon": pl.Float64,
+    "adress": pl.Utf8,
 }
 
 # -----------------------
@@ -130,6 +132,10 @@ driver = webdriver.Remote(
     command_executor="http://selenium-chrome.airflow.svc.cluster.local:4444",
     options=opts,
 )
+
+# Variables
+CODE_POSTAL = os.getenv("CODE_POSTAL")
+
 wait = WebDriverWait(driver, 15)
 
 # URL
@@ -143,7 +149,7 @@ time.strftime("%d/%m/%Y", time.localtime())  # warm-up
 today = time.strftime("%d/%m/%Y", time.localtime())
 
 # Parcourir tous les types de carburants
-all_rows = []
+full_rows = []
 for fuel in ["GO", "E10", "SP95", "SP98", "E85", "GPL"]:
     # 1) sélectionner le carburant et attendre le rafraîchissement
     try:
@@ -168,19 +174,55 @@ for fuel in ["GO", "E10", "SP95", "SP98", "E85", "GPL"]:
         dist_txt = safe_text("div.d-flex.align-items-center p.small")
         verif_txt = safe_text("span.text-success.small.fw-medium")
 
-        all_rows.append(
-            {
-                "date": today,
-                "code_postale": "02820",
-                "carburant": fuel,
-                "station": safe_text("h2"),
-                "ville": safe_text("span.small.text-gray-500.fw-light"),
-                "distance": fr_to_float(dist_txt),  # "11,9 km" -> 11.9
-                "prix": fr_to_float(price_txt),  # "1,594 €" -> 1.594
-                "verif": bool(verif_txt and "Vérifié" in verif_txt),
-                "lien": c.get_attribute("href"),
-            }
+        all_rows = {
+            "date": today,
+            "postal_code": CODE_POSTAL,
+            "fuel": fuel,
+            "station": safe_text("h2"),
+            "city": safe_text("span.small.text-gray-500.fw-light"),
+            "price": fr_to_float(price_txt),  # "1,594 €" -> 1.594
+            "checking": bool(verif_txt and "Vérifié" in verif_txt),
+            "link": c.get_attribute("href"),
+        }
+
+        import json, time, urllib.parse, urllib.request
+
+        def geocode_ban(query, limit=1):
+            base = "https://api-adresse.data.gouv.fr/search/"
+            params = {"q": query, "limit": limit}
+            url = base + "?" + urllib.parse.urlencode(params)
+
+            # (User-Agent pas obligé, mais c'est bien pratique pour tracer)
+            req = urllib.request.Request(url, headers={"User-Agent": "uv-gazolina/1.0"})
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+
+            feats = data.get("features", [])
+            results = []
+            for f in feats:
+                # BAN -> geometry.coordinates = [lon, lat]
+                lon, lat = f["geometry"]["coordinates"]
+                label = f["properties"].get("label")
+                results.append({"lat": float(lat), "lon": float(lon), "label": label})
+            return results
+
+        # Exemple d’appel (ton cas)
+        rows = geocode_ban(
+            f"{all_rows['station']} {all_rows['city']} France {all_rows['postal_code']}",
+            limit=1,
         )
+
+        query = f"{all_rows.get('station','')} {all_rows.get('city','')} France".strip()
+        res = geocode_ban(query, limit=1)
+        if res:
+            all_rows["lat"] = res[0]["lat"]
+            all_rows["lon"] = res[0]["lon"]
+            all_rows["adress"] = res[0]["label"]
+        else:
+            all_rows["lat"] = all_rows["lon"] = None
+            all_rows["adress"] = None
+
+        full_rows.append(all_rows)
 
 # Fermer la page web
 driver.quit()
@@ -194,7 +236,7 @@ col = client[MONGO_DB][MONGO_COL]
 
 # Insère la liste de dicts
 try:
-    res = col.insert_many(all_rows, ordered=False)  # ordered=False = plus rapide
+    res = col.insert_many(full_rows, ordered=False)  # ordered=False = plus rapide
     print(f"MongoDB: insérés = {len(res.inserted_ids)}")
 except errors.BulkWriteError as e:
     # si certains docs sont invalides/dupliqués, on le voit ici
