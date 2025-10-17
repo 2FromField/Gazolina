@@ -11,7 +11,7 @@ Projet visant à récupérer les prix annoncés des stations esssences sur diff�
 
 ## BPMN
 
--> A FAIRE
+![Diagramme BPMN](uv_gazolina/BPMN/diagram.svg)
 
 ## Source(s) de données
 
@@ -26,10 +26,58 @@ Projet visant à récupérer les prix annoncés des stations esssences sur diff�
 ## Type de données
 
 -> Tables (nom colonne, description, type, valeurs)
+| Nom colonne | Description |
+| --------------------------------- | --------------------------------------------------: |
+| `id` | Identifiant unique de l'insertion |
+| `date` | Date du reccueil des données |
+| `code_postale` | Code postal de la requête |
+| `carburant` | Type de carburant récupéré |
+| `station` | Nom de la station d'essence |
+| `ville` | Nom de la ville dans laquelle la station est localisée |
+| `distance` | Distancedepuis la position géolocalisée du site |
+| `prix` | Prix affiché en euros (€) du carburant |
+| `verif` | Vérification du prix le jour-même |
+| `lien` | Lien du site web de la station |
 
 # Architecture du projet
 
--> Treefile à faire
+```
+├── 📁 .venv/ 🚫 (auto-hidden)
+├── 📁 dags/
+│   └── 🐍 dag_essence.py
+├── 📁 data/
+├── 📁 gitops/
+│   ├── 📁 apps/
+│   │   ├── ⚙️ airflow.yaml
+│   │   ├── ⚙️ postgresql.yaml
+│   │   └── ⚙️ selenium-standalone-chrome.yaml
+│   ├── 📁 components/
+│   │   └── 📁 postgresql/
+│   │       └── ⚙️ values.yaml
+│   ├── 📁 helm/
+│   │   └── 📁 airflow/
+│   │       ├── 📁 templates/
+│   │       │   └── 📄 _noop.tpl
+│   │       ├── 📄 .helmignore
+│   │       ├── ⚙️ Chart.yaml
+│   │       └── ⚙️ values.yaml
+│   └── 📁 projects/
+│       └── ⚙️ platform-project.yaml
+├── 📁 scripts/
+│   ├── 📁 __pycache__/ 🚫 (auto-hidden)
+│   ├── 🐍 MonEssence.py
+│   ├── 🐍 MonEssence_local.py
+│   └── 🐍 utils.py
+├── 📄 .DS_Store 🚫 (auto-hidden)
+├── 📄 .python-version 🚫 (auto-hidden)
+├── 📖 README.md
+├── 🐍 main.py
+├── ⚙️ pipeline.conf
+├── ⚙️ pyproject.toml
+├── 📄 requirements.txt
+├── ⚙️ root-app.yaml
+└── 🔒 uv.lock
+```
 
 # Services indexés
 
